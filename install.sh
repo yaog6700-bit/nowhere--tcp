@@ -2,7 +2,7 @@
 set -e
 
 GITHUB_USER="yaog6700-bit"
-REPO="nowhere"
+REPO="nowhere--tcp"
 BINARY_NAME="nowhere"
 INSTALL_DIR="/root"
 SERVICE_NAME="nowhere"
@@ -71,8 +71,8 @@ do_uninstall() {
 # ════════════════════════════════════════════════════════════
 do_install() {
   echo "==========================================="
-  echo "       Nowhere v1 - 一键安装脚本          "
-  echo "==========================================="
+  echo "       Nowhere TCP - 一键安装脚本        "
+  echo "=========================================="
 
   ARCH=$(uname -m)
   if [ "$ARCH" != "x86_64" ]; then
@@ -98,18 +98,6 @@ do_install() {
 
   read -p "带宽限制 etar (Mbps) [默认: 1000]: " ETAR </dev/tty
   ETAR=${ETAR:-1000}
-
-  read -p "Spec 字符串 [留空自动生成]: " SPEC </dev/tty
-  if [ -z "$SPEC" ]; then
-    SPEC=$(openssl rand -hex 16)
-    echo -e "${GREEN}[✓] 自动生成 spec: ${SPEC}${NC}"
-  fi
-
-  read -p "ALPN 字符串 [留空自动生成]: " ALPN </dev/tty
-  if [ -z "$ALPN" ]; then
-    ALPN=$(openssl rand -hex 8)
-    echo -e "${GREEN}[✓] 自动生成 alpn: ${ALPN}${NC}"
-  fi
 
   read -p "节点名称 [默认: My-Node]: " LABEL </dev/tty
   LABEL=${LABEL:-My-Node}
@@ -155,11 +143,11 @@ do_install() {
   echo -e "${YELLOW}[*] 配置系统服务...${NC}"
   cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
 [Unit]
-Description=Nowhere Portal Server v1
+Description=Nowhere Portal Server (TCP)
 After=network.target
 [Service]
 Type=simple
-ExecStart=${INSTALL_DIR}/${BINARY_NAME} "portal://${KEY}@:${PORT}?etar=${ETAR}&spec=${SPEC}&alpn=${ALPN}"
+ExecStart=${INSTALL_DIR}/${BINARY_NAME} "portal://${KEY}@:${PORT}?etar=${ETAR}"
 Restart=always
 RestartSec=5
 StandardOutput=append:/var/log/nowhere.log
@@ -173,13 +161,13 @@ EOF
   systemctl restart ${SERVICE_NAME}
   echo -e "${GREEN}[✓] 服务已启动，已设置开机自启${NC}"
 
-  echo -e "${YELLOW}[*] 配置防火墙 UDP ${PORT}...${NC}"
+  echo -e "${YELLOW}[*] 配置防火墙 TCP ${PORT}...${NC}"
   if command -v ufw &>/dev/null; then
-    ufw allow ${PORT}/udp --quiet
+    ufw allow ${PORT}/tcp --quiet
   elif command -v firewall-cmd &>/dev/null; then
-    firewall-cmd --permanent --add-port=${PORT}/udp --quiet && firewall-cmd --reload --quiet
+    firewall-cmd --permanent --add-port=${PORT}/tcp --quiet && firewall-cmd --reload --quiet
   else
-    iptables -A INPUT -p udp --dport ${PORT} -j ACCEPT
+    iptables -A INPUT -p tcp --dport ${PORT} -j ACCEPT
   fi
   echo -e "${GREEN}[✓] 防火墙已放行${NC}"
 
@@ -191,14 +179,12 @@ EOF
   echo "==========================================="
   echo ""
   echo "  连接串（发给客户端）:"
-  echo "  nowhere://${KEY}@${PUBLIC_IP}:${PORT}?spec=${SPEC}&alpn=${ALPN}#${LABEL}"
+  echo "  nowhere://${KEY}@${PUBLIC_IP}:${PORT}#${LABEL}"
   echo ""
   echo "  IP   : ${PUBLIC_IP}"
-  echo "  端口 : ${PORT} (UDP)"
+  echo "  端口 : ${PORT} (TCP)"
   echo "  Key  : ${KEY}"
   echo "  etar : ${ETAR} Mbps"
-  echo "  spec : ${SPEC}"
-  echo "  alpn : ${ALPN}"
   echo ""
   echo "  管理命令:"
   echo "  查看日志: tail -f /var/log/nowhere.log"
