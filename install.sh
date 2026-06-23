@@ -23,7 +23,7 @@ fi
 # ════════════════════════════════════════════════════════════
 do_uninstall() {
   echo "==========================================="
-  echo "       Nowhere v1 - 卸载                  "
+  echo "       Nowhere - 卸载                     "
   echo "==========================================="
   echo ""
 
@@ -71,8 +71,8 @@ do_uninstall() {
 # ════════════════════════════════════════════════════════════
 do_install() {
   echo "==========================================="
-  echo "       Nowhere TCP - 一键安装脚本        "
-  echo "=========================================="
+  echo "       Nowhere TCP - 一键安装脚本         "
+  echo "==========================================="
 
   ARCH=$(uname -m)
   if [ "$ARCH" != "x86_64" ]; then
@@ -98,6 +98,15 @@ do_install() {
 
   read -p "带宽限制 etar (Mbps) [默认: 1000]: " ETAR </dev/tty
   ETAR=${ETAR:-1000}
+
+  read -p "网络模式 net (tcp/udp/mix) [默认: udp]: " NET </dev/tty
+  NET=${NET:-udp}
+  # 校验输入
+  if [[ "$NET" != "tcp" && "$NET" != "udp" && "$NET" != "mix" ]]; then
+    echo -e "${YELLOW}[!] 无效的 net 值 \"${NET}\"，已重置为 udp${NC}"
+    NET="udp"
+  fi
+  echo -e "${GREEN}[✓] 网络模式: ${NET}${NC}"
 
   read -p "节点名称 [默认: My-Node]: " LABEL </dev/tty
   LABEL=${LABEL:-My-Node}
@@ -141,13 +150,13 @@ do_install() {
   echo -e "${GREEN}[✓] 下载完成${NC}"
 
   echo -e "${YELLOW}[*] 配置系统服务...${NC}"
-  cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
+  cat > /etc/systemd/system/${SERVICE_NAME}.service <<EOF
 [Unit]
 Description=Nowhere Portal Server (TCP)
 After=network.target
 [Service]
 Type=simple
-ExecStart=${INSTALL_DIR}/${BINARY_NAME} "portal://${KEY}@:${PORT}?etar=${ETAR}"
+ExecStart=${INSTALL_DIR}/${BINARY_NAME} "portal://${KEY}@:${PORT}?etar=${ETAR}&net=${NET}"
 Restart=always
 RestartSec=5
 StandardOutput=append:/var/log/nowhere.log
@@ -161,13 +170,30 @@ EOF
   systemctl restart ${SERVICE_NAME}
   echo -e "${GREEN}[✓] 服务已启动，已设置开机自启${NC}"
 
-  echo -e "${YELLOW}[*] 配置防火墙 TCP ${PORT}...${NC}"
+  # ── 防火墙：根据 net 模式放行对应协议 ─────────────────────────
+  echo -e "${YELLOW}[*] 配置防火墙 (${NET}) 端口 ${PORT}...${NC}"
   if command -v ufw &>/dev/null; then
-    ufw allow ${PORT}/tcp --quiet
+    if [[ "$NET" == "tcp" || "$NET" == "mix" ]]; then
+      ufw allow ${PORT}/tcp --quiet
+    fi
+    if [[ "$NET" == "udp" || "$NET" == "mix" ]]; then
+      ufw allow ${PORT}/udp --quiet
+    fi
   elif command -v firewall-cmd &>/dev/null; then
-    firewall-cmd --permanent --add-port=${PORT}/tcp --quiet && firewall-cmd --reload --quiet
+    if [[ "$NET" == "tcp" || "$NET" == "mix" ]]; then
+      firewall-cmd --permanent --add-port=${PORT}/tcp --quiet
+    fi
+    if [[ "$NET" == "udp" || "$NET" == "mix" ]]; then
+      firewall-cmd --permanent --add-port=${PORT}/udp --quiet
+    fi
+    firewall-cmd --reload --quiet
   else
-    iptables -A INPUT -p tcp --dport ${PORT} -j ACCEPT
+    if [[ "$NET" == "tcp" || "$NET" == "mix" ]]; then
+      iptables -A INPUT -p tcp --dport ${PORT} -j ACCEPT
+    fi
+    if [[ "$NET" == "udp" || "$NET" == "mix" ]]; then
+      iptables -A INPUT -p udp --dport ${PORT} -j ACCEPT
+    fi
   fi
   echo -e "${GREEN}[✓] 防火墙已放行${NC}"
 
@@ -179,12 +205,13 @@ EOF
   echo "==========================================="
   echo ""
   echo "  连接串（发给客户端）:"
-  echo "  nowhere://${KEY}@${PUBLIC_IP}:${PORT}#${LABEL}"
+  echo "  nowhere://${KEY}@${PUBLIC_IP}:${PORT}?net=${NET}#${LABEL}"
   echo ""
   echo "  IP   : ${PUBLIC_IP}"
-  echo "  端口 : ${PORT} (TCP)"
+  echo "  端口 : ${PORT} (${NET})"
   echo "  Key  : ${KEY}"
   echo "  etar : ${ETAR} Mbps"
+  echo "  net  : ${NET}"
   echo ""
   echo "  管理命令:"
   echo "  查看日志: tail -f /var/log/nowhere.log"
