@@ -25,7 +25,6 @@ curl -sL https://raw.githubusercontent.com/yaog6700-bit/nowhere--tcp/main/instal
 |------|------|------|
 | 监听端口 | UDP 端口号 | `11111` |
 | 认证 Key | 连接密钥 | 自动生成 |
-| etar | 带宽限制（Mbps） | `1000` |
 | Spec | 协议规范字符串 | 自动生成 |
 | ALPN | TLS ALPN 标识 | 自动生成 |
 | 节点名称 | 连接串备注名 | `My-Node` |
