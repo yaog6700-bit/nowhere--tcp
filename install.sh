@@ -96,9 +96,6 @@ do_install() {
     echo -e "${GREEN}[✓] 自动生成 Key: ${KEY}${NC}"
   fi
 
-  read -p "带宽限制 etar (Mbps) [默认: 1000]: " ETAR </dev/tty
-  ETAR=${ETAR:-1000}
-
   read -p "网络模式 net (tcp/udp/mix) [默认: udp]: " NET </dev/tty
   NET=${NET:-udp}
   # 校验输入
@@ -107,6 +104,18 @@ do_install() {
     NET="udp"
   fi
   echo -e "${GREEN}[✓] 网络模式: ${NET}${NC}"
+
+  read -p "Spec [留空自动生成]: " SPEC </dev/tty
+  if [ -z "$SPEC" ]; then
+    SPEC=$(openssl rand -hex 4)
+    echo -e "${GREEN}[✓] 自动生成 spec: ${SPEC}${NC}"
+  fi
+
+  read -p "ALPN [留空自动生成]: " ALPN </dev/tty
+  if [ -z "$ALPN" ]; then
+    ALPN=$(openssl rand -hex 4)
+    echo -e "${GREEN}[✓] 自动生成 alpn: ${ALPN}${NC}"
+  fi
 
   read -p "节点名称 [默认: My-Node]: " LABEL </dev/tty
   LABEL=${LABEL:-My-Node}
@@ -156,7 +165,7 @@ Description=Nowhere Portal Server (TCP)
 After=network.target
 [Service]
 Type=simple
-ExecStart=${INSTALL_DIR}/${BINARY_NAME} "portal://${KEY}@:${PORT}?etar=${ETAR}&net=${NET}"
+ExecStart=${INSTALL_DIR}/${BINARY_NAME} "portal://${KEY}@:${PORT}?net=${NET}&spec=${SPEC}&alpn=${ALPN}"
 Restart=always
 RestartSec=5
 StandardOutput=append:/var/log/nowhere.log
@@ -205,13 +214,14 @@ EOF
   echo "==========================================="
   echo ""
   echo "  连接串（发给客户端）:"
-  echo "  nowhere://${KEY}@${PUBLIC_IP}:${PORT}?net=${NET}#${LABEL}"
+  echo "  nowhere://${KEY}@${PUBLIC_IP}:${PORT}?net=${NET}&spec=${SPEC}&alpn=${ALPN}#${LABEL}"
   echo ""
   echo "  IP   : ${PUBLIC_IP}"
   echo "  端口 : ${PORT} (${NET})"
   echo "  Key  : ${KEY}"
-  echo "  etar : ${ETAR} Mbps"
   echo "  net  : ${NET}"
+  echo "  spec : ${SPEC}"
+  echo "  alpn : ${ALPN}"
   echo ""
   echo "  管理命令:"
   echo "  查看日志: tail -f /var/log/nowhere.log"
